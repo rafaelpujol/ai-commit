@@ -1,4 +1,4 @@
-# ai-commit
+# aicommit
 
 🤖 AI-powered git commit message generator with multi-provider support.
 
@@ -15,12 +15,12 @@ Generate conventional commit messages using AI from OpenAI, Anthropic Claude, Ol
 ## Installation
 
 ```bash
-npm install -g .
+npm install -g aicommit-cli
 ```
 
 Or link it:
 ```bash
-cd /path/to/ai-commit
+cd /path/to/aicommit
 npm link
 ```
 
@@ -28,13 +28,13 @@ npm link
 
 ```bash
 # 1. Set your default provider
-ai-commit config set provider vllm
+aicommit config set provider vllm
 
 # 2. Add files to staging
 git add .
 
 # 3. Generate commit message
-ai-commit
+aicommit
 ```
 
 ## Usage
@@ -42,32 +42,32 @@ ai-commit
 ### Basic Commands
 
 ```bash
-ai-commit                  # Generate commit with default provider
-ai-commit --dry-run        # Preview without committing
-ai-commit -p openai        # Use specific provider
-ai-commit -m gpt-4o        # Use specific model
+aicommit                  # Generate commit with default provider
+aicommit --dry-run        # Preview without committing
+aicommit -p openai        # Use specific provider
+aicommit -m gpt-4o        # Use specific model
 ```
 
 ### Configuration
 
 ```bash
 # Set default provider
-ai-commit config set provider vllm
+aicommit config set provider vllm
 
 # Set default model
-ai-commit config set model gpt-4o
+aicommit config set model gpt-4o
 
 # Set temperature (creativity: 0-1)
-ai-commit config set temperature 0.3
+aicommit config set temperature 0.3
 
 # View current config
-ai-commit config get
+aicommit config get
 
 # View specific setting
-ai-commit config get provider
+aicommit config get provider
 
 # Delete a setting
-ai-commit config delete model
+aicommit config delete model
 ```
 
 ### Options
@@ -86,7 +86,7 @@ ai-commit config delete model
 
 ```bash
 export OPENAI_API_KEY=sk-...
-ai-commit -p openai -m gpt-4o
+aicommit -p openai -m gpt-4o
 ```
 
 Models: `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`
@@ -95,7 +95,7 @@ Models: `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
-ai-commit -p anthropic -m claude-sonnet-4-20250514
+aicommit -p anthropic -m claude-sonnet-4-20250514
 ```
 
 Models: `claude-sonnet-4-20250514`, `claude-3-5-sonnet-20241022`, `claude-3-opus-20240229`
@@ -104,7 +104,7 @@ Models: `claude-sonnet-4-20250514`, `claude-3-5-sonnet-20241022`, `claude-3-opus
 
 ```bash
 export OLLAMA_HOST=http://localhost:11434
-ai-commit -p ollama -m llama3
+aicommit -p ollama -m llama3
 ```
 
 Runs open-source models locally. Default port: `11434`
@@ -115,7 +115,7 @@ Models: `llama3`, `llama3.1`, `mistral`, `codellama`, etc.
 
 ```bash
 export VLLM_HOST=http://localhost:8090
-ai-commit -p vllm
+aicommit -p vllm
 ```
 
 OpenAI-compatible local inference server. Default port: `8090`
@@ -133,7 +133,7 @@ docker run --gpus all -v ~/.cache/huggingface:/root/.cache/huggingface \
 
 ```bash
 export MOONSHOT_API_KEY=sk-...
-ai-commit -p kimi -m kimi-k2.5
+aicommit -p kimi -m kimi-k2.5
 ```
 
 Models: `kimi-k2.5`, `kimi-k2`, `kimi-k2-thinking`
@@ -150,7 +150,7 @@ Models: `kimi-k2.5`, `kimi-k2`, `kimi-k2-thinking`
 
 ## Configuration File
 
-Settings are stored in `~/.ai-commit.json`:
+Settings are stored in `~/.aicommit.json`:
 
 ```json
 {
@@ -175,25 +175,25 @@ Includes login, logout, and token refresh endpoints.
 
 ```bash
 # Quick commit with defaults
-git add . && ai-commit
+git add . && aicommit
 
 # Preview only
-ai-commit --dry-run
+aicommit --dry-run
 
 # Use different provider just once
-ai-commit -p anthropic
+aicommit -p anthropic
 
 # Use specific model
-ai-commit -m gpt-4-turbo
+aicommit -m gpt-4-turbo
 
 # More creative responses
-ai-commit -t 0.7
+aicommit -t 0.7
 
 # Deterministic responses
-ai-commit -t 0.1
+aicommit -t 0.1
 
 # Skip confirmation prompt
-ai-commit --no-edit
+aicommit --no-edit
 ```
 
 ## Requirements

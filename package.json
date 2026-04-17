@@ -1,10 +1,10 @@
 {
-  "name": "ai-commit-generator",
+  "name": "@rafaelpujol/aicommit-cli",
   "version": "1.0.0",
   "description": "AI-powered git commit message generator with multi-provider support (OpenAI, Claude, Ollama, vLLM, Kimi)",
   "main": "src/index.js",
   "bin": {
-    "ai-commit": "bin/cli.js"
+    "aicommit": "bin/cli.js"
   },
   "type": "module",
   "scripts": {

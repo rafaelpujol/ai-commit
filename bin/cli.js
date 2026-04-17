@@ -9,21 +9,20 @@ import { generateCommitMessage } from '../src/generator.js';
 const program = new Command();
 
 program
-  .name('ai-commit')
-  .description(`
-🤖 AI-powered git commit message generator
+  .name('aicommit')
+  .description(`AI-powered git commit message generator
 
-Generate conventional commit messages using AI from multiple providers.
-Supports: OpenAI GPT-4, Anthropic Claude, Ollama, vLLM, Kimi.
+Generate conventional commits with AI. Supports OpenAI, Claude, Ollama, vLLM, Kimi.
 
-Usage:
-  ai-commit                  # Generate commit (uses default provider)
-  ai-commit --dry-run        # Preview without committing
-  ai-commit config set       # Configure defaults`)
+Examples:
+  aicommit                   # Generate commit (uses default provider)
+  aicommit --dry-run         # Preview without committing
+  aicommit -y                # Auto-confirm commit
+  aicommit config set        # Configure defaults`)
   .version('1.0.0');
 
 const configCmd = program.command('config')
-  .description('Manage persistent configuration');
+  .description('Manage persistent configuration (stored in ~/.ai-commit.json)');
 
 configCmd
   .command('set <key> <value>')
@@ -73,6 +72,7 @@ program
   .option('-m, --model <name>', 'Model name (provider-specific)')
   .option('-t, --temperature <number>', 'AI creativity (0-1, default: 0.3)', parseFloat)
   .option('--no-edit', 'Skip edit confirmation')
+  .option('-y, --yes', 'Auto-confirm commit without prompting')
   .option('--dry-run', 'Preview commit without creating it')
   .action(async (options) => {
     await runCommit(options);
@@ -87,8 +87,8 @@ async function runCommit(options) {
 
     const provider = getProvider(providerName, { model, temperature });
 
-    const { diff, hasStaged } = await checkStagedFiles();
-    
+    const { diff, stats, hasStaged } = await checkStagedFiles();
+
     if (!hasStaged) {
       console.log(chalk.red('❌ No staged files. Run: git add <files>'));
       process.exit(1);
@@ -96,7 +96,7 @@ async function runCommit(options) {
 
     console.log(chalk.blue(`🤖 Analyzing changes with ${chalk.bold(providerName)}...`));
 
-    const message = await generateCommitMessage(provider, diff);
+    const message = await generateCommitMessage(provider, diff, stats);
 
     console.log(chalk.green('\n📝 Generated commit message:'));
     console.log(`   ${chalk.bold('Summary:')} ${message.summary}`);
@@ -107,6 +107,17 @@ async function runCommit(options) {
     if (dryRun) {
       console.log(chalk.yellow('\n[ Dry run - no commit created ]'));
       process.exit(0);
+    }
+
+    let finalMessage = message.summary;
+    if (message.description) {
+      finalMessage += `\n\n${message.description}`;
+    }
+
+    if (options.yes) {
+      await commit(finalMessage);
+      console.log(chalk.green('\n✅ Commit created successfully!'));
+      return;
     }
 
     const { confirm } = await inquirer.prompt([
@@ -126,11 +137,6 @@ async function runCommit(options) {
     if (confirm === 'cancel') {
       console.log(chalk.yellow('Cancelled'));
       process.exit(0);
-    }
-
-    let finalMessage = message.summary;
-    if (message.description) {
-      finalMessage += `\n\n${message.description}`;
     }
 
     if (confirm === 'edit') {
@@ -155,12 +161,19 @@ async function runCommit(options) {
 
 async function checkStagedFiles() {
   const { execSync } = await import('child_process');
-  
+
   try {
     const diff = execSync('git diff --cached --no-color', { encoding: 'utf-8' });
-    return { diff, hasStaged: diff.trim().length > 0 };
+    if (!diff.trim()) return { diff: '', stats: null, hasStaged: false };
+
+    let stats = null;
+    try {
+      stats = execSync('git diff --cached --stat --no-color', { encoding: 'utf-8' });
+    } catch { /* non-fatal */ }
+
+    return { diff, stats, hasStaged: true };
   } catch {
-    return { diff: '', hasStaged: false };
+    return { diff: '', stats: null, hasStaged: false };
   }
 }
 
