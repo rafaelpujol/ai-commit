@@ -37,5 +37,5 @@ coverage/
 *.temp
 .tmp/
 
-# Lock files
-package-lock.json
+# npm pack tarballs
+*.tgz
