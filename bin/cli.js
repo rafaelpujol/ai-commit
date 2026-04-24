@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
+import { execSync } from 'child_process';
 import { config } from '../src/config.js';
 import { getProvider } from '../src/providers/index.js';
 import { generateCommitMessage } from '../src/generator.js';
@@ -18,6 +19,8 @@ Examples:
   aicommit                   # Generate commit (uses default provider)
   aicommit --dry-run         # Preview without committing
   aicommit -y                # Auto-confirm commit
+  aicommit -a                # Stage all changes and commit
+  aicommit -a -y             # Stage all, auto-confirm commit
   aicommit config set        # Configure defaults`)
   .version('1.0.0');
 
@@ -73,6 +76,7 @@ program
   .option('-t, --temperature <number>', 'AI creativity (0-1, default: 0.3)', parseFloat)
   .option('--no-edit', 'Skip edit confirmation')
   .option('-y, --yes', 'Auto-confirm commit without prompting')
+  .option('-a, --all', 'Stage all changes automatically if none are staged')
   .option('--dry-run', 'Preview commit without creating it')
   .action(async (options) => {
     await runCommit(options);
@@ -87,11 +91,43 @@ async function runCommit(options) {
 
     const provider = getProvider(providerName, { model, temperature });
 
-    const { diff, stats, hasStaged } = await checkStagedFiles();
+    let { diff, stats, hasStaged, hasUnstaged } = await checkStagedFiles();
 
     if (!hasStaged) {
-      console.log(chalk.red('❌ No staged files. Run: git add <files>'));
-      process.exit(1);
+      if (!hasUnstaged) {
+        console.log(chalk.red('❌ No changes to commit.'));
+        process.exit(1);
+      }
+
+      if (options.all) {
+        execSync('git add -A', { encoding: 'utf-8' });
+        console.log(chalk.yellow('📦 Staged all changes automatically (--all)'));
+      } else {
+        const { shouldStage } = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'shouldStage',
+            message: 'No staged changes found. Stage all changes and continue?',
+            choices: [
+              { name: 'Yes', value: true },
+              { name: 'No', value: false }
+            ],
+            default: true
+          }
+        ]);
+        if (!shouldStage) {
+          console.log(chalk.yellow('Cancelled'));
+          process.exit(0);
+        }
+        execSync('git add -A', { encoding: 'utf-8' });
+        console.log(chalk.yellow('📦 Staged all changes'));
+      }
+
+      // Re-read staged diff after adding
+      const staged = await checkStagedFiles();
+      diff = staged.diff;
+      stats = staged.stats;
+      hasStaged = staged.hasStaged;
     }
 
     console.log(chalk.blue(`🤖 Analyzing changes with ${chalk.bold(providerName)}...`));
@@ -160,25 +196,30 @@ async function runCommit(options) {
 }
 
 async function checkStagedFiles() {
-  const { execSync } = await import('child_process');
-
   try {
     const diff = execSync('git diff --cached --no-color', { encoding: 'utf-8' });
-    if (!diff.trim()) return { diff: '', stats: null, hasStaged: false };
-
-    let stats = null;
-    try {
-      stats = execSync('git diff --cached --stat --no-color', { encoding: 'utf-8' });
-    } catch { /* non-fatal */ }
-
-    return { diff, stats, hasStaged: true };
+    if (diff.trim()) {
+      let stats = null;
+      try {
+        stats = execSync('git diff --cached --stat --no-color', { encoding: 'utf-8' });
+      } catch { /* non-fatal */ }
+      return { diff, stats, hasStaged: true, hasUnstaged: false };
+    }
   } catch {
-    return { diff: '', stats: null, hasStaged: false };
+    return { diff: '', stats: null, hasStaged: false, hasUnstaged: false };
+  }
+
+  // No staged changes — check for unstaged
+  try {
+    const status = execSync('git status --porcelain', { encoding: 'utf-8' });
+    const hasUnstaged = status.trim().length > 0;
+    return { diff: '', stats: null, hasStaged: false, hasUnstaged };
+  } catch {
+    return { diff: '', stats: null, hasStaged: false, hasUnstaged: false };
   }
 }
 
 async function commit(message) {
-  const { execSync } = await import('child_process');
   execSync(`git commit -F -`, { 
     input: message, 
     stdio: ['pipe', 'inherit', 'inherit'] 
