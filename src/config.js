@@ -32,9 +32,6 @@ export const config = {
       provider: 'AI_COMMIT_PROVIDER',
       model: 'AI_COMMIT_MODEL',
       temperature: 'AI_COMMIT_TEMPERATURE',
-      openaiKey: 'OPENAI_API_KEY',
-      anthropicKey: 'ANTHROPIC_API_KEY',
-      moonshotKey: 'MOONSHOT_API_KEY',
       ollamaHost: 'OLLAMA_HOST',
       vllmHost: 'VLLM_HOST'
     }[key];

@@ -12,7 +12,7 @@ export function create({ model, temperature }) {
     name: 'kimi',
     model: model || 'kimi-k2-0711-preview',
 
-    async generate(diff, stats) {
+    async generateRaw(systemPrompt, userMessage) {
       const response = await fetch('https://api.moonshot.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -22,18 +22,21 @@ export function create({ model, temperature }) {
         body: JSON.stringify({
           model: this.model,
           messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: buildUserMessage(diff, stats) }
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
           ],
           temperature: temperature ?? 0.3,
-          max_tokens: 500
+          max_tokens: 1000
         })
       });
-
       const data = await response.json();
       if (data.error) throw new Error(data.error.message);
+      return data.choices[0].message.content;
+    },
 
-      return parseMessage(data.choices[0].message.content);
+    async generate(diff, stats) {
+      const content = await this.generateRaw(SYSTEM_PROMPT, buildUserMessage(diff, stats));
+      return parseMessage(content);
     }
   };
 }

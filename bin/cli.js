@@ -5,7 +5,7 @@ import inquirer from 'inquirer';
 import { execSync } from 'child_process';
 import { config } from '../src/config.js';
 import { getProvider } from '../src/providers/index.js';
-import { generateCommitMessage } from '../src/generator.js';
+import { generateCommitMessage, PR_SYSTEM_PROMPT, parsePRMessage, buildPRUserMessage } from '../src/generator.js';
 
 const program = new Command();
 
@@ -31,6 +31,11 @@ configCmd
   .command('set <key> <value>')
   .description('Set a configuration value')
   .action((key, value) => {
+    if (['openaiKey', 'anthropicKey', 'moonshotKey'].includes(key)) {
+      console.log(chalk.red(`API keys cannot be set via config. Use environment variables instead:`));
+      console.log(chalk.yellow('  OPENAI_API_KEY, ANTHROPIC_API_KEY, MOONSHOT_API_KEY'));
+      process.exit(1);
+    }
     if (key === 'provider' && !['openai', 'anthropic', 'ollama', 'vllm', 'kimi'].includes(value)) {
       console.log(chalk.red(`Invalid provider: ${value}`));
       console.log(chalk.yellow('Available: openai, anthropic, ollama, vllm, kimi'));
@@ -78,12 +83,18 @@ program
   .option('-y, --yes', 'Auto-confirm commit without prompting')
   .option('-a, --all', 'Stage all changes automatically if none are staged')
   .option('--dry-run', 'Preview commit without creating it')
+  .option('--pr', 'Create a GitHub PR after committing (requires gh CLI)')
   .action(async (options) => {
     await runCommit(options);
   });
 
 async function runCommit(options) {
   try {
+    if (!isInsideGitRepo()) {
+      console.log(chalk.red('❌ Not inside a git repository.'));
+      process.exit(1);
+    }
+
     const providerName = options.provider || config.get('provider') || 'openai';
     const model = options.model || config.get('model');
     const temperature = options.temperature ?? config.get('temperature') ?? 0.3;
@@ -153,6 +164,7 @@ async function runCommit(options) {
     if (options.yes) {
       await commit(finalMessage);
       console.log(chalk.green('\n✅ Commit created successfully!'));
+      if (options.pr) await createPR(message.summary, message.description);
       return;
     }
 
@@ -189,19 +201,38 @@ async function runCommit(options) {
 
     await commit(finalMessage);
     console.log(chalk.green('\n✅ Commit created successfully!'));
+    if (options.pr) await createPR(message.summary, message.description);
   } catch (error) {
     console.error(chalk.red(`\n❌ Error: ${error.message}`));
     process.exit(1);
   }
 }
 
+function isInsideGitRepo() {
+  try {
+    const out = execSync('git rev-parse --is-inside-work-tree', {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    return out.trim() === 'true';
+  } catch {
+    return false;
+  }
+}
+
 async function checkStagedFiles() {
   try {
-    const diff = execSync('git diff --cached --no-color', { encoding: 'utf-8' });
+    const diff = execSync('git diff --cached --no-color', {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
     if (diff.trim()) {
       let stats = null;
       try {
-        stats = execSync('git diff --cached --stat --no-color', { encoding: 'utf-8' });
+        stats = execSync('git diff --cached --stat --no-color', {
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe']
+        });
       } catch { /* non-fatal */ }
       return { diff, stats, hasStaged: true, hasUnstaged: false };
     }
@@ -211,7 +242,10 @@ async function checkStagedFiles() {
 
   // No staged changes — check for unstaged
   try {
-    const status = execSync('git status --porcelain', { encoding: 'utf-8' });
+    const status = execSync('git status --porcelain', {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
     const hasUnstaged = status.trim().length > 0;
     return { diff: '', stats: null, hasStaged: false, hasUnstaged };
   } catch {
@@ -220,10 +254,130 @@ async function checkStagedFiles() {
 }
 
 async function commit(message) {
-  execSync(`git commit -F -`, { 
-    input: message, 
-    stdio: ['pipe', 'inherit', 'inherit'] 
+  execSync(`git commit -F -`, {
+    input: message,
+    stdio: ['pipe', 'inherit', 'inherit']
   });
+}
+
+program
+  .command('pr')
+  .description('Generate a PR title/description from current branch and create it on GitHub')
+  .option('-p, --provider <name>', 'AI provider (openai, anthropic, ollama, vllm, kimi)')
+  .option('-m, --model <name>', 'Model name')
+  .option('-b, --base <branch>', 'Base branch to compare against', 'main')
+  .option('-y, --yes', 'Auto-confirm without prompting')
+  .option('--dry-run', 'Preview PR without creating it')
+  .action(async (options) => {
+    try {
+      if (!isInsideGitRepo()) {
+        console.log(chalk.red('❌ Not inside a git repository.'));
+        process.exit(1);
+      }
+
+      try {
+        execSync('gh --version', { stdio: 'ignore' });
+      } catch {
+        console.log(chalk.red('❌ gh CLI not found. Install it from https://cli.github.com'));
+        process.exit(1);
+      }
+
+      const providerName = options.provider || config.get('provider') || 'openai';
+      const model = options.model || config.get('model');
+      const temperature = config.get('temperature') ?? 0.3;
+      const base = options.base;
+
+      const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
+      if (branch === base) {
+        console.log(chalk.red(`❌ Already on base branch (${base}). Create a feature branch first.`));
+        process.exit(1);
+      }
+
+      const commits = execSync(`git log ${base}..HEAD --oneline`, { encoding: 'utf-8' }).trim();
+      if (!commits) {
+        console.log(chalk.red(`❌ No commits ahead of ${base}.`));
+        process.exit(1);
+      }
+
+      const diff = execSync(`git diff ${base}...HEAD --no-color`, { encoding: 'utf-8' });
+
+      const provider = getProvider(providerName, { model, temperature });
+      console.log(chalk.blue(`🤖 Generating PR description with ${chalk.bold(providerName)}...`));
+
+      const raw = await provider.generateRaw(PR_SYSTEM_PROMPT, buildPRUserMessage(commits, diff));
+      const pr = parsePRMessage(raw);
+
+      console.log(chalk.green('\n📝 Generated PR:'));
+      console.log(`   ${chalk.bold('Title:')} ${pr.title}`);
+      if (pr.body) {
+        console.log(`   ${chalk.bold('Body:')}\n${pr.body.split('\n').map(l => '   ' + l).join('\n')}`);
+      }
+
+      if (options.dryRun) {
+        console.log(chalk.yellow('\n[ Dry run - no PR created ]'));
+        process.exit(0);
+      }
+
+      if (!options.yes) {
+        const { confirm } = await inquirer.prompt([{
+          type: 'list',
+          name: 'confirm',
+          message: 'Create PR?',
+          choices: [
+            { name: 'Yes', value: true },
+            { name: 'Cancel', value: false }
+          ],
+          default: true
+        }]);
+        if (!confirm) {
+          console.log(chalk.yellow('Cancelled'));
+          process.exit(0);
+        }
+      }
+
+      console.log(chalk.blue('\n🚀 Pushing branch and creating PR...'));
+      execSync(`git push -u origin ${branch}`, { stdio: 'inherit' });
+
+      const prUrl = execSync(
+        `gh pr create --title ${JSON.stringify(pr.title)} --body ${JSON.stringify(pr.body || '')} --base ${base}`,
+        { encoding: 'utf-8' }
+      ).trim();
+
+      console.log(chalk.green(`\n✅ PR created: ${chalk.bold(prUrl)}`));
+    } catch (err) {
+      console.error(chalk.red(`\n❌ Error: ${err.message}`));
+      process.exit(1);
+    }
+  });
+
+async function createPR(title, body) {
+  try {
+    execSync('gh --version', { stdio: 'ignore' });
+  } catch {
+    console.log(chalk.red('❌ gh CLI not found. Install it from https://cli.github.com'));
+    return;
+  }
+
+  try {
+    console.log(chalk.blue('\n🚀 Pushing branch and creating PR...'));
+    const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
+    execSync(`git push -u origin ${branch}`, { stdio: 'inherit' });
+
+    const args = [`--title`, title];
+    if (body) {
+      args.push('--body', body);
+    } else {
+      args.push('--body', '');
+    }
+
+    const prUrl = execSync(`gh pr create ${args.map(a => JSON.stringify(a)).join(' ')}`, {
+      encoding: 'utf-8'
+    }).trim();
+
+    console.log(chalk.green(`\n✅ PR created: ${chalk.bold(prUrl)}`));
+  } catch (err) {
+    console.log(chalk.red(`\n❌ PR creation failed: ${err.message}`));
+  }
 }
 
 program.parse();

@@ -47,6 +47,7 @@ Commit with breaking change:
   BREAKING CHANGE: delete ~/.ai-commit.json and re-run \`aicommit config set\`.`;
 
 export function parseMessage(content) {
+  if (!content) throw new Error('AI returned an empty response');
   const summaryMatch = content.match(/^SUMMARY:\s*(.+)/m);
   const descMatch = content.match(/^DESCRIPTION:\s*([\s\S]+?)(?=\nSUMMARY:|\nBREAKING CHANGE:|$)/m);
 
@@ -78,4 +79,36 @@ export function buildUserMessage(diff, stats) {
 
 export async function generateCommitMessage(provider, diff, stats) {
   return await provider.generate(diff, stats);
+}
+
+export const PR_SYSTEM_PROMPT = `You are a technical writer creating GitHub pull request descriptions.
+Analyze the provided commits and diff, then generate a concise PR title and body.
+
+Output format:
+  TITLE: <short title, max 72 characters>
+  BODY:
+  <markdown body>
+
+Rules:
+- TITLE: imperative mood, describes the overall change ("add vLLM support" not "added vLLM support")
+- BODY: markdown. Start with a 1-2 sentence summary of what and why. Then a bullet list of the main changes. Keep it developer-focused, not a repeat of every commit.
+- Do NOT use headers like ## Summary or ## Changes — just plain prose + bullets.
+- Omit obvious filler ("This PR updates...", "Changes include...").`;
+
+export function parsePRMessage(content) {
+  if (!content) throw new Error('AI returned an empty response');
+  const titleMatch = content.match(/^TITLE:\s*(.+)/m);
+  const bodyMatch = content.match(/^BODY:\s*\n([\s\S]+)/m);
+  return {
+    title: titleMatch ? titleMatch[1].trim() : content.split('\n')[0].trim(),
+    body: bodyMatch ? bodyMatch[1].trim() : ''
+  };
+}
+
+export function buildPRUserMessage(commits, diff) {
+  let processedDiff = diff.trim();
+  if (processedDiff.length > MAX_DIFF_LENGTH) {
+    processedDiff = processedDiff.substring(0, MAX_DIFF_LENGTH) + '\n\n[... diff truncated ...]';
+  }
+  return `Generate a PR title and description for the following branch.\n\nCommits:\n${commits}\n\nDiff:\n${processedDiff}`;
 }

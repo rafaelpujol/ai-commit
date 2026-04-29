@@ -12,7 +12,7 @@ export function create({ model, temperature }) {
     name: 'anthropic',
     model: model || 'claude-sonnet-4-6',
 
-    async generate(diff, stats) {
+    async generateRaw(systemPrompt, userMessage) {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -22,19 +22,20 @@ export function create({ model, temperature }) {
         },
         body: JSON.stringify({
           model: this.model,
-          system: SYSTEM_PROMPT,
-          messages: [
-            { role: 'user', content: buildUserMessage(diff, stats) }
-          ],
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userMessage }],
           temperature: temperature ?? 0.3,
-          max_tokens: 500
+          max_tokens: 1000
         })
       });
-
       const data = await response.json();
       if (data.error) throw new Error(data.error.message);
+      return data.content[0].text;
+    },
 
-      return parseMessage(data.content[0].text);
+    async generate(diff, stats) {
+      const content = await this.generateRaw(SYSTEM_PROMPT, buildUserMessage(diff, stats));
+      return parseMessage(content);
     }
   };
 }

@@ -8,25 +8,28 @@ export function create({ model, temperature }) {
     name: 'ollama',
     model: model || 'llama3',
 
-    async generate(diff, stats) {
+    async generateRaw(systemPrompt, userMessage) {
       const response = await fetch(`${host}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: this.model,
           messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: buildUserMessage(diff, stats) }
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
           ],
           temperature: temperature ?? 0.3,
           stream: false
         })
       });
-
       const data = await response.json();
       if (data.error) throw new Error(data.error);
+      return data.message.content;
+    },
 
-      return parseMessage(data.message.content);
+    async generate(diff, stats) {
+      const content = await this.generateRaw(SYSTEM_PROMPT, buildUserMessage(diff, stats));
+      return parseMessage(content);
     }
   };
 }
