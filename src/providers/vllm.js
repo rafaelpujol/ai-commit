@@ -11,7 +11,7 @@ async function getDefaultModel(host) {
   }
 }
 
-export function create({ model, temperature }) {
+export function create({ model, temperature, maxTokens }) {
   const host = config.getHost('vllm');
 
   return {
@@ -25,7 +25,7 @@ export function create({ model, temperature }) {
           { role: 'user', content: userMessage }
         ],
         temperature: temperature ?? 0.3,
-        max_tokens: 1000
+        max_tokens: maxTokens ?? 8192
       };
 
       const resolvedModel = this.model ?? await getDefaultModel(host);

@@ -32,6 +32,7 @@ export const config = {
       provider: 'AI_COMMIT_PROVIDER',
       model: 'AI_COMMIT_MODEL',
       temperature: 'AI_COMMIT_TEMPERATURE',
+      maxTokens: 'AI_COMMIT_MAX_TOKENS',
       ollamaHost: 'OLLAMA_HOST',
       vllmHost: 'VLLM_HOST'
     }[key];
@@ -53,7 +54,8 @@ export const config = {
     const keys = {
       openai: 'OPENAI_API_KEY',
       anthropic: 'ANTHROPIC_API_KEY',
-      kimi: 'MOONSHOT_API_KEY'
+      kimi: 'MOONSHOT_API_KEY',
+      nvidia: 'NVIDIA_API_KEY'
     };
     return process.env[keys[provider]];
   },

@@ -45,7 +45,11 @@ configCmd
       console.log(chalk.red('Temperature must be between 0 and 1'));
       process.exit(1);
     }
-    config.set(key, key === 'temperature' ? parseFloat(value) : value);
+    if (key === 'maxTokens' && (isNaN(value) || parseInt(value) < 1)) {
+      console.log(chalk.red('maxTokens must be a positive integer'));
+      process.exit(1);
+    }
+    config.set(key, key === 'temperature' ? parseFloat(value) : key === 'maxTokens' ? parseInt(value) : value);
     console.log(chalk.green(`✅ ${key} set to ${value}`));
   });
 
@@ -62,6 +66,7 @@ configCmd
       console.log(`  provider:    ${chalk.cyan(currentProvider)}`);
       console.log(`  model:       ${config.get('model') ? chalk.cyan(config.get('model')) : chalk.gray('(not set)')}`);
       console.log(`  temperature: ${config.get('temperature') ? chalk.cyan(config.get('temperature')) : chalk.gray('(not set)')}`);
+      console.log(`  maxTokens:   ${config.get('maxTokens') ? chalk.cyan(config.get('maxTokens')) : chalk.gray('(not set)')}`);
       console.log(chalk.gray('\n  Config file: ~/.ai-commit.json'));
     }
   });
@@ -79,6 +84,7 @@ program
                                 Default: from config or 'openai'`)
   .option('-m, --model <name>', 'Model name (provider-specific)')
   .option('-t, --temperature <number>', 'AI creativity (0-1, default: 0.3)', parseFloat)
+  .option('--max-tokens <number>', 'Max tokens for AI response (default: 8192)', parseInt)
   .option('--no-edit', 'Skip edit confirmation')
   .option('-y, --yes', 'Auto-confirm commit without prompting')
   .option('-a, --all', 'Stage all changes automatically if none are staged')
@@ -98,9 +104,10 @@ async function runCommit(options) {
     const providerName = options.provider || config.get('provider') || 'openai';
     const model = options.model || config.get('model');
     const temperature = options.temperature ?? config.get('temperature') ?? 0.3;
+    const maxTokens = options.maxTokens ?? config.get('maxTokens') ?? 8192;
     const dryRun = options.dryRun ?? false;
 
-    const provider = getProvider(providerName, { model, temperature });
+    const provider = getProvider(providerName, { model, temperature, maxTokens });
 
     let { diff, stats, hasStaged, hasUnstaged } = await checkStagedFiles();
 

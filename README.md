@@ -2,11 +2,11 @@
 
 AI-powered git commit message generator with multi-provider support.
 
-Generate conventional commit messages — and GitHub pull requests — using AI from OpenAI, Anthropic Claude, Ollama, vLLM, or Kimi.
+Generate conventional commit messages — and GitHub pull requests — using AI from OpenAI, Anthropic Claude, Ollama, vLLM, Kimi, or NVIDIA.
 
 ## Features
 
-- **Multi-provider**: OpenAI, Anthropic Claude, Ollama, vLLM, Kimi
+- **Multi-provider**: OpenAI, Anthropic Claude, Ollama, vLLM, Kimi, NVIDIA
 - **Conventional Commits**: Follows the [Conventional Commits](https://www.conventionalcommits.org/) specification
 - **GitHub PR generation**: Create pull requests with AI-generated title and description (requires [GitHub CLI](https://cli.github.com))
 - **Persistent config**: Save your preferred provider and settings
@@ -53,6 +53,7 @@ aicommit -m gpt-4o        # Use specific model
 | `-p, --provider <name>` | AI provider | config or `openai` |
 | `-m, --model <name>` | Model name | config or provider default |
 | `-t, --temperature <n>` | AI creativity (0–1) | `0.3` |
+| `--max-tokens <n>` | Max tokens for AI response | `8192` |
 | `-a, --all` | Stage all changes if none are staged | `false` |
 | `-y, --yes` | Auto-confirm without prompting | `false` |
 | `--dry-run` | Preview only, no commit created | `false` |
@@ -110,6 +111,7 @@ aicommit -a -y --pr
 aicommit config set provider vllm      # Set default provider
 aicommit config set model llama3       # Set default model
 aicommit config set temperature 0.3    # Set temperature (0–1)
+aicommit config set maxTokens 8192     # Set max tokens for AI response
 aicommit config get                    # View all settings
 aicommit config get provider           # View single setting
 aicommit config delete model           # Remove a setting
@@ -121,7 +123,8 @@ Settings are stored in `~/.aicommit.json`:
 {
   "provider": "vllm",
   "model": "llama3",
-  "temperature": 0.3
+  "temperature": 0.3,
+  "maxTokens": 8192
 }
 ```
 
@@ -184,6 +187,15 @@ aicommit -p kimi
 
 Models: `kimi-k2-0711-preview`, `kimi-k2`, `kimi-k2-thinking`
 
+### NVIDIA
+
+```bash
+export NVIDIA_API_KEY=nvapi-...
+aicommit -p nvidia -m moonshotai/kimi-k2-instruct
+```
+
+Models: `moonshotai/kimi-k2-instruct`, `meta/llama-3.3-70b-instruct`, `minimaxai/minimax-m2.7`, `nvidia/llama-3.3-nemotron-super-49b-v1`, etc.
+
 ## Environment Variables
 
 | Variable | Provider |
@@ -193,6 +205,7 @@ Models: `kimi-k2-0711-preview`, `kimi-k2`, `kimi-k2-thinking`
 | `MOONSHOT_API_KEY` | kimi |
 | `OLLAMA_HOST` | ollama |
 | `VLLM_HOST` | vllm |
+| `NVIDIA_API_KEY` | nvidia |
 
 ## Commit Format
 

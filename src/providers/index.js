@@ -6,7 +6,8 @@ const providers = {
   anthropic: () => require('./anthropic.js'),
   ollama: () => require('./ollama.js'),
   vllm: () => require('./vllm.js'),
-  kimi: () => require('./kimi.js')
+  kimi: () => require('./kimi.js'),
+  nvidia: () => require('./nvidia.js')
 };
 
 export function getProvider(name, options) {
