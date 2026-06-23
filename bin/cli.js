@@ -31,14 +31,14 @@ configCmd
   .command('set <key> <value>')
   .description('Set a configuration value')
   .action((key, value) => {
-    if (['openaiKey', 'anthropicKey', 'moonshotKey'].includes(key)) {
+    if (['openaiKey', 'anthropicKey', 'moonshotKey', 'vllmKey', 'nvidiaKey'].includes(key)) {
       console.log(chalk.red(`API keys cannot be set via config. Use environment variables instead:`));
-      console.log(chalk.yellow('  OPENAI_API_KEY, ANTHROPIC_API_KEY, MOONSHOT_API_KEY'));
+      console.log(chalk.yellow('  OPENAI_API_KEY, ANTHROPIC_API_KEY, MOONSHOT_API_KEY, VLLM_API_KEY, NVIDIA_API_KEY'));
       process.exit(1);
     }
-    if (key === 'provider' && !['openai', 'anthropic', 'ollama', 'vllm', 'kimi'].includes(value)) {
+    if (key === 'provider' && !['openai', 'anthropic', 'ollama', 'vllm', 'kimi', 'nvidia'].includes(value)) {
       console.log(chalk.red(`Invalid provider: ${value}`));
-      console.log(chalk.yellow('Available: openai, anthropic, ollama, vllm, kimi'));
+      console.log(chalk.yellow('Available: openai, anthropic, ollama, vllm, kimi, nvidia'));
       process.exit(1);
     }
     if (key === 'temperature' && (isNaN(value) || value < 0 || value > 1)) {
@@ -49,8 +49,15 @@ configCmd
       console.log(chalk.red('maxTokens must be a positive integer'));
       process.exit(1);
     }
-    config.set(key, key === 'temperature' ? parseFloat(value) : key === 'maxTokens' ? parseInt(value) : value);
-    console.log(chalk.green(`✅ ${key} set to ${value}`));
+    let effectiveKey = key;
+    if (key === 'model') {
+      const currentProvider = config.get('provider');
+      if (currentProvider) {
+        effectiveKey = `${currentProvider}Model`;
+      }
+    }
+    config.set(effectiveKey, key === 'temperature' ? parseFloat(value) : key === 'maxTokens' ? parseInt(value) : value);
+    console.log(chalk.green(`✅ ${effectiveKey} set to ${value}`));
   });
 
 configCmd
@@ -64,9 +71,11 @@ configCmd
     } else {
       console.log(chalk.bold('\n📋 Current configuration:\n'));
       console.log(`  provider:    ${chalk.cyan(currentProvider)}`);
-      console.log(`  model:       ${config.get('model') ? chalk.cyan(config.get('model')) : chalk.gray('(not set)')}`);
+      console.log(`  model:       ${config.getModel(currentProvider) ? chalk.cyan(config.getModel(currentProvider)) : chalk.gray('(not set)')}`);
       console.log(`  temperature: ${config.get('temperature') ? chalk.cyan(config.get('temperature')) : chalk.gray('(not set)')}`);
       console.log(`  maxTokens:   ${config.get('maxTokens') ? chalk.cyan(config.get('maxTokens')) : chalk.gray('(not set)')}`);
+      const vllmKey = config.getApiKey('vllm');
+      console.log(`  vllmKey:     ${vllmKey ? chalk.green('***' + vllmKey.slice(-4)) : chalk.gray('(not set)')}`);
       console.log(chalk.gray('\n  Config file: ~/.ai-commit.json'));
     }
   });
@@ -102,7 +111,7 @@ async function runCommit(options) {
     }
 
     const providerName = options.provider || config.get('provider') || 'openai';
-    const model = options.model || config.get('model');
+    const model = options.model || config.getModel(providerName);
     const temperature = options.temperature ?? config.get('temperature') ?? 0.3;
     const maxTokens = options.maxTokens ?? config.get('maxTokens') ?? 8192;
     const dryRun = options.dryRun ?? false;
@@ -290,7 +299,7 @@ program
       }
 
       const providerName = options.provider || config.get('provider') || 'openai';
-      const model = options.model || config.get('model');
+      const model = options.model || config.getModel(providerName);
       const temperature = config.get('temperature') ?? 0.3;
       const base = options.base;
 

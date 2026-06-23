@@ -2,14 +2,14 @@ const MAX_DIFF_LENGTH = 12000;
 
 export const SYSTEM_PROMPT = `You are a precise technical writer specializing in git commit messages. Analyze the provided diff and generate a commit message following the Conventional Commits specification.
 
-Output format — SUMMARY is always required, DESCRIPTION is optional:
+Output format — SUMMARY is always required, DESCRIPTION is recommended for non-trivial changes:
   SUMMARY: <type>(<scope>): <description>
-  DESCRIPTION: <multi-line body>        ← omit this line entirely if not needed
+  DESCRIPTION: <multi-line body>
 
 Rules:
 - SUMMARY: max 72 characters. Use imperative mood: "add endpoint" not "added endpoint", "remove unused import" not "removes unused import"
 - scope: infer from the changed file paths (e.g. auth, api, ui, config) — omit scope if the change spans the whole codebase or scope is unclear
-- DESCRIPTION: include only when the summary alone is not enough to understand WHY the change was made. Explain motivation and context, not what the diff shows. Wrap lines at 72 characters.
+- DESCRIPTION: ALWAYS include when there are multiple files changed, logic modifications, or non-obvious decisions. Explain the WHY and context, not just what the diff shows. Wrap lines at 72 characters. Only omit for trivial changes like single-line typos, formatting, or obvious variable renames.
 - Do NOT write "DESCRIPTION: none", "DESCRIPTION: N/A", or any placeholder — omit the line entirely.
 - For breaking changes, add "BREAKING CHANGE: <what breaks and how to migrate>" as the last line of DESCRIPTION.
 
@@ -34,12 +34,17 @@ Simple commit (no description needed):
 
   SUMMARY: build(deps): upgrade Vite from v5 to v6
 
-Commit with description (non-obvious reason):
+Commit with description (non-obvious reason or multiple changes):
   SUMMARY: fix(payments): return 503 when card processor is unavailable
   DESCRIPTION: The payment API returns null instead of an error when the
   card processor is down. This caused an unhandled exception and a 500
   response. Now we detect the null, log the outage, and return a 503
   with a Retry-After header so clients can back off gracefully.
+
+  SUMMARY: refactor(api): restructure validation logic across services
+  DESCRIPTION: Extracted duplicate validation into shared middleware.
+  Updated 4 services to use the new validator, reducing code by 120
+  lines and ensuring consistent error responses across all endpoints.
 
 Commit with breaking change:
   SUMMARY: refactor(config): replace JSON config with TOML
@@ -49,7 +54,7 @@ Commit with breaking change:
 export function parseMessage(content) {
   if (!content) throw new Error('AI returned an empty response');
   const summaryMatch = content.match(/^SUMMARY:\s*(.+)/m);
-  const descMatch = content.match(/^DESCRIPTION:\s*([\s\S]+?)(?=\nSUMMARY:|\nBREAKING CHANGE:|$)/m);
+  const descMatch = content.match(/^DESCRIPTION:\s*([\s\S]+)(?=\nSUMMARY:|\nBREAKING CHANGE:|$)/m);
 
   const rawDesc = descMatch ? descMatch[1].trim() : null;
   const description = rawDesc && !/^(none|n\/a|-|null|no description needed)$/i.test(rawDesc)

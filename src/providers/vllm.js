@@ -13,6 +13,7 @@ async function getDefaultModel(host) {
 
 export function create({ model, temperature, maxTokens }) {
   const host = config.getHost('vllm');
+  const apiKey = config.getApiKey('vllm');
 
   return {
     name: 'vllm',
@@ -25,15 +26,22 @@ export function create({ model, temperature, maxTokens }) {
           { role: 'user', content: userMessage }
         ],
         temperature: temperature ?? 0.3,
-        max_tokens: maxTokens ?? 8192
+        max_tokens: maxTokens ?? 500,
+        stop: ['\n\n\n', 'SUMMARY:', '```'],
+        frequency_penalty: 0.1,
+        presence_penalty: 0.1
       };
 
       const resolvedModel = this.model ?? await getDefaultModel(host);
-      if (resolvedModel) body.model = resolvedModel;
+      if (!resolvedModel) throw new Error('vLLM: no model specified. Set it with: aicommit config set model <name> or use -m <name>');
+      body.model = resolvedModel;
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
       const response = await fetch(`${host}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(body)
       });
 

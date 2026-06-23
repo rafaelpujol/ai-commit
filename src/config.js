@@ -34,7 +34,8 @@ export const config = {
       temperature: 'AI_COMMIT_TEMPERATURE',
       maxTokens: 'AI_COMMIT_MAX_TOKENS',
       ollamaHost: 'OLLAMA_HOST',
-      vllmHost: 'VLLM_HOST'
+      vllmHost: 'VLLM_HOST',
+      vllmApiKey: 'VLLM_API_KEY'
     }[key];
 
     return process.env[envKey] ?? fileConfig[key];
@@ -55,16 +56,24 @@ export const config = {
       openai: 'OPENAI_API_KEY',
       anthropic: 'ANTHROPIC_API_KEY',
       kimi: 'MOONSHOT_API_KEY',
-      nvidia: 'NVIDIA_API_KEY'
+      nvidia: 'NVIDIA_API_KEY',
+      vllm: 'VLLM_API_KEY'
     };
-    return process.env[keys[provider]];
+    return process.env[keys[provider]] || loadConfig()[`${provider}Key`];
   },
 
   getHost(provider) {
     const hosts = {
-      ollama: process.env.OLLAMA_HOST || 'http://localhost:11434',
-      vllm: process.env.VLLM_HOST || 'http://localhost:8090'
+      ollama: process.env.OLLAMA_HOST || loadConfig().ollamaHost || 'http://localhost:11434',
+      vllm: process.env.VLLM_HOST || loadConfig().vllmHost || 'http://localhost:8090'
     };
     return hosts[provider];
+  },
+
+  getModel(provider) {
+    const envModel = process.env.AI_COMMIT_MODEL;
+    if (envModel) return envModel;
+    const fileConfig = loadConfig();
+    return fileConfig[`${provider}Model`] || fileConfig.model;
   }
 };
