@@ -3,9 +3,12 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { execSync } from 'child_process';
+import { readFileSync } from 'fs';
 import { config } from '../src/config.js';
 import { getProvider } from '../src/providers/index.js';
 import { generateCommitMessage, PR_SYSTEM_PROMPT, parsePRMessage, buildPRUserMessage } from '../src/generator.js';
+
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8'));
 
 const program = new Command();
 
@@ -22,7 +25,7 @@ Examples:
   aicommit -a                # Stage all changes and commit
   aicommit -a -y             # Stage all, auto-confirm commit
   aicommit config set        # Configure defaults`)
-  .version('1.0.0');
+  .version(pkg.version);
 
 const configCmd = program.command('config')
   .description('Manage persistent configuration (stored in ~/.ai-commit.json)');

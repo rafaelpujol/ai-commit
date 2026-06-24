@@ -1,7 +1,8 @@
 import { config } from '../config.js';
 import { SYSTEM_PROMPT, parseMessage, buildUserMessage } from '../generator.js';
+import { REQUEST_TIMEOUT_MS } from './openai-compatible.js';
 
-export function create({ model, temperature }) {
+export function create({ model, temperature, maxTokens }) {
   const apiKey = config.getApiKey('anthropic');
 
   if (!apiKey) {
@@ -25,12 +26,16 @@ export function create({ model, temperature }) {
           system: systemPrompt,
           messages: [{ role: 'user', content: userMessage }],
           temperature: temperature ?? 0.3,
-          max_tokens: 1000
-        })
+          max_tokens: maxTokens ?? 1000
+        }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
       });
       const data = await response.json();
-      if (data.error) throw new Error(data.error.message);
-      return data.content[0].text;
+      if (data.error) throw new Error(data.error.message ?? JSON.stringify(data.error));
+
+      const content = data.content?.[0]?.text;
+      if (!content) throw new Error(`anthropic returned no content. Response: ${JSON.stringify(data)}`);
+      return content;
     },
 
     async generate(diff, stats) {
