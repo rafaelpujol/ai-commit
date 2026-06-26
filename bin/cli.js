@@ -16,7 +16,7 @@ program
   .name('aicommit')
   .description(`AI-powered git commit message generator
 
-Generate conventional commits with AI. Supports OpenAI, Claude, Ollama, vLLM, Kimi.
+Generate conventional commits with AI. Supports OpenAI, Claude, Ollama, vLLM, Kimi, Kimi Code.
 
 Examples:
   aicommit                   # Generate commit (uses default provider)
@@ -34,14 +34,14 @@ configCmd
   .command('set <key> <value>')
   .description('Set a configuration value')
   .action((key, value) => {
-    if (['openaiKey', 'anthropicKey', 'moonshotKey', 'vllmKey', 'nvidiaKey'].includes(key)) {
+    if (['openaiKey', 'anthropicKey', 'moonshotKey', 'kimicodeKey', 'vllmKey', 'nvidiaKey'].includes(key)) {
       console.log(chalk.red(`API keys cannot be set via config. Use environment variables instead:`));
-      console.log(chalk.yellow('  OPENAI_API_KEY, ANTHROPIC_API_KEY, MOONSHOT_API_KEY, VLLM_API_KEY, NVIDIA_API_KEY'));
+      console.log(chalk.yellow('  OPENAI_API_KEY, ANTHROPIC_API_KEY, MOONSHOT_API_KEY, KIMICODE_API_KEY, VLLM_API_KEY, NVIDIA_API_KEY'));
       process.exit(1);
     }
-    if (key === 'provider' && !['openai', 'anthropic', 'ollama', 'vllm', 'kimi', 'nvidia'].includes(value)) {
+    if (key === 'provider' && !['openai', 'anthropic', 'ollama', 'vllm', 'kimi', 'kimicode', 'nvidia'].includes(value)) {
       console.log(chalk.red(`Invalid provider: ${value}`));
-      console.log(chalk.yellow('Available: openai, anthropic, ollama, vllm, kimi, nvidia'));
+      console.log(chalk.yellow('Available: openai, anthropic, ollama, vllm, kimi, kimicode, nvidia'));
       process.exit(1);
     }
     if (key === 'temperature' && (isNaN(value) || value < 0 || value > 1)) {
@@ -92,7 +92,7 @@ configCmd
   });
 
 program
-  .option('-p, --provider <name>', `AI provider (openai, anthropic, ollama, vllm, kimi)
+  .option('-p, --provider <name>', `AI provider (openai, anthropic, ollama, vllm, kimi, kimicode)
                                 Default: from config or 'openai'`)
   .option('-m, --model <name>', 'Model name (provider-specific)')
   .option('-t, --temperature <number>', 'AI creativity (0-1, default: 0.3)', parseFloat)
@@ -282,7 +282,7 @@ async function commit(message) {
 program
   .command('pr')
   .description('Generate a PR title/description from current branch and create it on GitHub')
-  .option('-p, --provider <name>', 'AI provider (openai, anthropic, ollama, vllm, kimi)')
+  .option('-p, --provider <name>', 'AI provider (openai, anthropic, ollama, vllm, kimi, kimicode)')
   .option('-m, --model <name>', 'Model name')
   .option('-b, --base <branch>', 'Base branch to compare against', 'main')
   .option('-y, --yes', 'Auto-confirm without prompting')

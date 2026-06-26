@@ -2,11 +2,11 @@
 
 AI-powered git commit message generator with multi-provider support.
 
-Generate conventional commit messages — and GitHub pull requests — using AI from OpenAI, Anthropic Claude, Ollama, vLLM, Kimi, or NVIDIA.
+Generate conventional commit messages — and GitHub pull requests — using AI from OpenAI, Anthropic Claude, Ollama, vLLM, Kimi, Kimi Code, or NVIDIA.
 
 ## Features
 
-- **Multi-provider**: OpenAI, Anthropic Claude, Ollama, vLLM, Kimi, NVIDIA
+- **Multi-provider**: OpenAI, Anthropic Claude, Ollama, vLLM, Kimi, Kimi Code, NVIDIA
 - **Conventional Commits**: Follows the [Conventional Commits](https://www.conventionalcommits.org/) specification
 - **GitHub PR generation**: Create pull requests with AI-generated title and description (requires [GitHub CLI](https://cli.github.com))
 - **Persistent config**: Save your preferred provider and settings
@@ -162,11 +162,16 @@ Models: `llama3`, `mistral`, `codellama`, etc.
 
 ```bash
 export VLLM_HOST=http://localhost:8090
+# If your local server requires an API key:
+export VLLM_API_KEY=your-key
+# Falls back to OMLX_API_KEY if VLLM_API_KEY is not set
 aicommit -p vllm
 ```
 
 OpenAI-compatible local inference server. Default port: `8090`.  
 If no model is specified, aicommit queries `/v1/models` and uses the first available model automatically.
+
+Local models can be slow to load and generate, so `aicommit` uses a **3-minute timeout** for the vLLM provider. For Qwen3-style reasoning models, `thinking_budget: 0` is sent automatically so the model follows the commit format instead of outputting a thinking process.
 
 ```bash
 # Example: run vLLM with Docker
@@ -187,6 +192,20 @@ aicommit -p kimi
 
 Models: `kimi-k2-0711-preview`, `kimi-k2`, `kimi-k2-thinking`
 
+### Kimi Code (Moonshot Coding)
+
+```bash
+export KIMICODE_API_KEY=sk-...
+aicommit -p kimicode
+```
+
+Kimi Code uses the `https://api.kimi.com/coding/v1/messages` endpoint (Anthropic Messages API) and requires keys prefixed with `sk-kimi-`.
+
+- Primary key: `KIMICODE_API_KEY`
+- Fallback keys (in order): `KIMI_API_KEY`, `MOONSHOT_API_KEY`
+
+Models: `kimi-k2-turbo-preview`, `kimi-k2.7-code`, `kimi-k2-thinking`
+
 ### NVIDIA
 
 ```bash
@@ -203,8 +222,12 @@ Models: `moonshotai/kimi-k2-instruct`, `meta/llama-3.3-70b-instruct`, `minimaxai
 | `OPENAI_API_KEY` | openai |
 | `ANTHROPIC_API_KEY` | anthropic |
 | `MOONSHOT_API_KEY` | kimi |
+| `KIMICODE_API_KEY` | kimicode |
+| `KIMI_API_KEY` | kimicode (fallback) |
 | `OLLAMA_HOST` | ollama |
 | `VLLM_HOST` | vllm |
+| `VLLM_API_KEY` | vllm |
+| `OMLX_API_KEY` | vllm (fallback) |
 | `NVIDIA_API_KEY` | nvidia |
 
 ## Commit Format

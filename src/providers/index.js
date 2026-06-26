@@ -7,6 +7,7 @@ const providers = {
   ollama: () => require('./ollama.js'),
   vllm: () => require('./vllm.js'),
   kimi: () => require('./kimi.js'),
+  kimicode: () => require('./kimicode.js'),
   nvidia: () => require('./nvidia.js')
 };
 

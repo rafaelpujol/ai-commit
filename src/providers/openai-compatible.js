@@ -20,10 +20,12 @@ export const REQUEST_TIMEOUT_MS = 30000;
  * @param {object} [spec.extraBody]       extra request-body fields (stop, penalties…)
  * @param {(baseURL: string) => Promise<string|null>} [spec.resolveModel]
  *        async fallback to discover a model when none is configured
+ * @param {number} [spec.timeout]         request timeout in milliseconds
  */
 export function createOpenAICompatible(spec) {
   return ({ model, temperature, maxTokens }) => {
     const apiKey = spec.apiKeyName ? config.getApiKey(spec.apiKeyName) : undefined;
+    const timeoutMs = spec.timeout ?? REQUEST_TIMEOUT_MS;
     if (spec.requireApiKey && !apiKey) {
       throw new Error(spec.apiKeyError ?? `${spec.name} API key not found.`);
     }
@@ -61,7 +63,7 @@ export function createOpenAICompatible(spec) {
           method: 'POST',
           headers,
           body: JSON.stringify(body),
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+          signal: AbortSignal.timeout(timeoutMs)
         });
 
         const data = await response.json();

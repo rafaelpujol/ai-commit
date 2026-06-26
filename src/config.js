@@ -56,9 +56,19 @@ export const config = {
       openai: 'OPENAI_API_KEY',
       anthropic: 'ANTHROPIC_API_KEY',
       kimi: 'MOONSHOT_API_KEY',
+      kimicode: ['KIMICODE_API_KEY', 'KIMI_API_KEY', 'MOONSHOT_API_KEY'],
       nvidia: 'NVIDIA_API_KEY',
-      vllm: 'VLLM_API_KEY'
+      vllm: ['VLLM_API_KEY', 'OMLX_API_KEY']
     };
+
+    const keyNames = keys[provider];
+    if (Array.isArray(keyNames)) {
+      for (const name of keyNames) {
+        if (process.env[name]) return process.env[name];
+      }
+      return loadConfig()[`${provider}Key`];
+    }
+
     return process.env[keys[provider]] || loadConfig()[`${provider}Key`];
   },
 
