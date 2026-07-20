@@ -38,7 +38,8 @@ export function create({ model, temperature, maxTokens }) {
       if (data.error) throw new Error(data.error.message ?? JSON.stringify(data.error));
       if (!response.ok) throw new Error(`Kimi Code HTTP ${response.status}: ${JSON.stringify(data)}`);
 
-      const content = data.content?.[0]?.text;
+      const contentItem = data.content?.find(c => c.type === 'text' || c.type === 'text_delta');
+      const content = contentItem?.text;
       if (!content) throw new Error(`kimicode returned no content. Response: ${JSON.stringify(data)}`);
       return content;
     },

@@ -1,3 +1,6 @@
 .claude/
 .env
 *.local
+*.tmp
+*.temp
+*.tgz

@@ -169,7 +169,7 @@ aicommit -p vllm
 ```
 
 OpenAI-compatible local inference server. Default port: `8090`.  
-If no model is specified, aicommit queries `/v1/models` and uses the first available model automatically.
+If no model is specified, aicommit queries `/v1/models` and uses the first available model automatically, falling back to `Qwen3.5-9B-OptiQ-4bit`.
 
 Local models can be slow to load and generate, so `aicommit` uses a **3-minute timeout** for the vLLM provider. For Qwen3-style reasoning models, `thinking_budget: 0` is sent automatically so the model follows the commit format instead of outputting a thinking process.
 
